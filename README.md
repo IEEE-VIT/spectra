@@ -4,6 +4,10 @@
 
 🟥🟧🟨🟩🟦🟪🟫⬛⬜ 
 
+## Hacktoberfest 2022 with IEEE-VIT
+
+What is Hacktoberfest 2022? HacktoberFest 2022 is the 9th edition of Hacktoberfest hosted by DigitalOcean. It is an open source festival celebrated during October every year, encouraging people worldwide to actively participate and contribute to participating open source projects hosted across GitHub and GitLab.
+
 ## About
 
 As a frequenter of the internet, you must often come across interesting colors 
