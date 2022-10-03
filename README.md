@@ -1,6 +1,6 @@
 # Spectra
 
-![](https://tipseason.com/assets/images/hacktoberfest-banner.jpg)
+![](spectra.png)
 
 🟥🟧🟨🟩🟦🟪🟫⬛⬜ 
 
