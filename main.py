@@ -7,7 +7,12 @@ from PIL import Image, ImageGrab
 
 # Function to get the hex code value which takes a tuple containing the red,green,blue values from 0-255.
 def getHex(rgb):
-    pass
+    output = ''
+    
+    for value in rgb :
+        output += hex(value)[2:].upper().zfill(2)
+        
+    return output
 
 # The getColor function accepts 2 arguments, 1 x coordinate, 1 y coordinate, we capture or "grab" an image,
 # and based on the x-y coordinates we get the color at that particular pixel. 
