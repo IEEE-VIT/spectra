@@ -17,7 +17,9 @@ def getHex(rgb):
 # The getColor function accepts 2 arguments, 1 x coordinate, 1 y coordinate, we capture or "grab" an image,
 # and based on the x-y coordinates we get the color at that particular pixel. 
 def getColor(x,y):
-    pass
+    coor = x,y
+    
+    return ImageGrab.grab().getpixel(coor)
 
 # Function to record whether or not the mouse has been clicked, takes x, y coordinates as arguments,
 #  and button specifies which particular botton is pressed(in our case, it would be 'right click'),
