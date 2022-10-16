@@ -29,7 +29,10 @@ def onClick(x,y,button,press):
 #  and it will only tell us the value of the color if we press the close button,
 #  we'll need to code an exit in some way. So we use a key on the keyboard to terminate the program.
 def onRel(key):
-    pass
+    #Setting Delete key as the exit key.
+    if (key==keyboard.Key.delete):
+        #Stopping the Listener.
+        return False
 
 # The main function that runs, to listen for keyboard, mouse inputs.
 def main():
