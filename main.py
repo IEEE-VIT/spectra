@@ -24,8 +24,12 @@ def getColor(x,y):
 # Function to record whether or not the mouse has been clicked, takes x, y coordinates as arguments,
 #  and button specifies which particular botton is pressed(in our case, it would be 'right click'),
 #  and press is a boolean indicating if it has been pressed or not.
+coordinates = 0, 0
 def onClick(x,y,button,press):
-    pass
+    global coordinates
+    if ((button == mouse.Button.right) & press):
+        coordinates = x,y
+        return False
 
 # Since we cannot keep the script running all the time,
 #  and it will only tell us the value of the color if we press the close button,
