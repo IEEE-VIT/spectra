@@ -24,8 +24,12 @@ def getColor(x,y):
 # Function to record whether or not the mouse has been clicked, takes x, y coordinates as arguments,
 #  and button specifies which particular botton is pressed(in our case, it would be 'right click'),
 #  and press is a boolean indicating if it has been pressed or not.
+value = 0
 def onClick(x,y,button,press):
-    pass
+    global value
+    if ((button == mouse.Button.right) & press):
+        value = getHex(getColor(x,y))
+        return False
 
 # Since we cannot keep the script running all the time,
 #  and it will only tell us the value of the color if we press the close button,
@@ -41,7 +45,7 @@ def main():
     with keyboard.Listener(on_release=onRel) as k:
         with mouse.Listener(on_click=onClick) as m:
             k.join()
-            m.join()    
+            m.join() 
 
 if __name__ =="__main__":
     main()
