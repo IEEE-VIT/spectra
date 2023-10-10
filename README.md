@@ -1,12 +1,12 @@
 # Spectra
 
-![](spectra.png)
+<img src="https://files.ieeevit.org/Hacktoberfest-23/Spectra.png" alt="README Banner">
 
 🟥🟧🟨🟩🟦🟪🟫⬛⬜ 
 
-## Hacktoberfest 2022 with IEEE-VIT
+## Hacktoberfest 2023 with IEEE-VIT
 
-What is Hacktoberfest 2022? HacktoberFest 2022 is the 9th edition of Hacktoberfest hosted by DigitalOcean. It is an open source festival celebrated during October every year, encouraging people worldwide to actively participate and contribute to participating open source projects hosted across GitHub and GitLab.
+What is Hacktoberfest 2023? HacktoberFest 2023 is the 10th edition of Hacktoberfest hosted by DigitalOcean. It is an open source festival celebrated during October every year, encouraging people worldwide to actively participate and contribute to participating open source projects hosted across GitHub and GitLab.
 
 ## About
 
@@ -30,7 +30,7 @@ Python 3
 
 - ` pip install -r requirements.txt `
 
-- ` python3 main.py `
+- ` python main.py `
 
 ## Getting Started
 
