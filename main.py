@@ -5,6 +5,17 @@ from PIL import Image, ImageGrab
 # These are the dependencies we will be using, we use pynput to record the input from either the mouse or the keyboard,
 # The cursor coordinates are used to capture the pixel the cursor is resting on, and whether or not the mouse has been clicked.
 
+colorList = []
+
+# Function to print the color detected
+# Assuming it is stored hex code
+# colorList is a global variable
+def printColorList():
+    print("Colors detected are:", end=" ")
+    for color in colorList:
+        print(f"#{color}", end=" ")
+    print()
+
 # Function to get the hex code value which takes a tuple containing the red,green,blue values from 0-255.
 def getHex(rgb):
     output = ''
