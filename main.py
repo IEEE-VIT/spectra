@@ -14,6 +14,15 @@ def getHex(rgb):
         
     return output
 
+# Function to convert hex code to RGB format
+def hex_to_rgb(hexcode):
+    # Remove the '#' if present
+    hexcode = hexcode.lstrip('#')
+    
+    # Convert hex to RGB
+    rgb = tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
+    return rgb
+
 # The getColor function accepts 2 arguments, 1 x coordinate, 1 y coordinate, we capture or "grab" an image,
 # and based on the x-y coordinates we get the color at that particular pixel. 
 def getColor(x,y):
