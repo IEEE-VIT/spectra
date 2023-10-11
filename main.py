@@ -1,9 +1,22 @@
 from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
+from os.path import isfile
 
 # These are the dependencies we will be using, we use pynput to record the input from either the mouse or the keyboard,
 # The cursor coordinates are used to capture the pixel the cursor is resting on, and whether or not the mouse has been clicked.
+
+colorList = []
+
+# Function to export the colors detected to file_path
+# Assume that global colorList stores hexcodes of colors
+# If file_path is already present it raises Error
+def exportToFile(file_path):
+    if isfile(file_path):
+        raise FileExistsError(f"{file_path} is already present")
+    with open(file_path, "w") as f:
+        for color in colorList:
+            f.write(f"#{color}\n")
 
 # Function to get the hex code value which takes a tuple containing the red,green,blue values from 0-255.
 def getHex(rgb):
