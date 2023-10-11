@@ -8,6 +8,15 @@ from os.path import isfile
 
 colorList = []
 
+# Function to print the color detected
+# Assuming it is stored hex code
+# colorList is a global variable
+def printColorList():
+    print("Colors detected are:", end=" ")
+    for color in colorList:
+        print(f"#{color}", end=" ")
+    print()
+
 # Function to export the colors detected to file_path
 # Assume that global colorList stores hexcodes of colors
 # If file_path is already present it raises Error
