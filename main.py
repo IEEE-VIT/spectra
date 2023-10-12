@@ -56,7 +56,15 @@ def getColor(x,y):
 #  and button specifies which particular botton is pressed(in our case, it would be 'right click'),
 #  and press is a boolean indicating if it has been pressed or not.
 def onClick(x,y,button,press):
-    pass
+    # check if the pressed mouse button is the right button
+    if button == mouse.Button.right and press:
+        # get the color of the pixel at the coordinates x and y
+        color = getColor(x, y)
+        # convert the color (RGB format) into a hexadecimal representation.
+        hex_color = getHex(color)
+        
+        colorList.append(hex_color)
+        print(f"Color at mouse click (x={x}, y={y}): #{hex_color}")
 
 # Since we cannot keep the script running all the time,
 #  and it will only tell us the value of the color if we press the close button,
