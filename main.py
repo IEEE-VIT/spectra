@@ -685,7 +685,7 @@ if __name__ == "__main__":
         file_path = input("Enter the file path to export colors (supported: .txt, .csv, .json, .html): ").strip()
         export_colors_to_file(file_path)
     else:
-        print("Invalid choice. Please choose 1 or 2.")'''
+        print("Invalid choice. Please choose 1 or 2.")
 from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
@@ -799,4 +799,117 @@ if __name__ == "__main__":
     if choice == '1':
         start_color_capture()
     else:
-        print("Invalid choice. Please choose 1.")
+        print("Invalid choice. Please choose 1.")'''
+import tkinter as tk
+from tkinter import messagebox, filedialog
+from pynput import keyboard, mouse
+from PIL import ImageGrab
+from os.path import isfile
+
+# Global variables
+colorList = []
+exit_requested = False
+
+# --- Core functions ---
+
+def getHex(rgb):
+    return "".join(hex(value)[2:].upper().zfill(2) for value in rgb)
+
+def hex_to_rgb(hexcode):
+    hexcode = hexcode.lstrip('#')
+    return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
+
+def getColor(x, y):
+    return ImageGrab.grab().getpixel((x, y))
+
+def onClick(x, y, button, press):
+    if exit_requested:
+        return False
+    if button == mouse.Button.right and press:
+        color = getColor(x, y)
+        hex_color = getHex(color)
+        colorList.append(hex_color)
+        listbox.insert(tk.END, f"#{hex_color}")
+
+def onRel(key):
+    global exit_requested
+    if key == keyboard.Key.delete:
+        exit_requested = True
+        return False
+    elif hasattr(key, 'char'):
+        if key.char.lower() == 'p':
+            print("Captured colors:", colorList)
+        elif key.char.lower() == 'e':
+            root.after(0, export_colors_to_file)
+
+def start_capture():
+    global exit_requested
+    exit_requested = False
+    messagebox.showinfo("Info", "Right-click anywhere on the screen to capture colors.\nPress 'Delete' to stop capturing.\nPress 'P' to print captured colors.\nPress 'E' to export captured colors.")
+    with keyboard.Listener(on_release=onRel) as k:
+        with mouse.Listener(on_click=onClick) as m:
+            k.join()
+            m.join()
+
+def export_colors_to_file():
+    if not colorList:
+        messagebox.showwarning("Warning", "No colors captured.")
+        return
+    file_path = file_entry.get().strip()
+    if not file_path:
+        messagebox.showwarning("Warning", "Please enter a file path.")
+        return
+
+    if isfile(file_path):
+        overwrite = messagebox.askyesno("File exists", f"The file '{file_path}' exists. Overwrite?")
+        if not overwrite:
+            return
+
+    try:
+        with open(file_path, 'w') as f:
+            for color in colorList:
+                f.write(f"#{color}\n")
+        messagebox.showinfo("Success", f"Colors exported to {file_path}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to export colors: {e}")
+
+def clear_colors():
+    global colorList
+    colorList = []
+    listbox.delete(0, tk.END)
+
+def browse_file():
+    file_path = filedialog.asksaveasfilename(defaultextension=".txt",
+                                             filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+    if file_path:
+        file_entry.delete(0, tk.END)
+        file_entry.insert(0, file_path)
+
+# --- GUI Setup ---
+root = tk.Tk()
+root.title("Color Capture Tool")
+
+# Buttons and UI
+start_btn = tk.Button(root, text="Start Capturing Colors", command=start_capture)
+start_btn.pack(pady=5)
+
+file_frame = tk.Frame(root)
+file_frame.pack(pady=5)
+file_entry = tk.Entry(file_frame, width=40)
+file_entry.pack(side=tk.LEFT, padx=5)
+browse_btn = tk.Button(file_frame, text="Browse...", command=browse_file)
+browse_btn.pack(side=tk.LEFT)
+
+export_btn = tk.Button(root, text="Export Captured Colors", command=export_colors_to_file)
+export_btn.pack(pady=5)
+
+listbox = tk.Listbox(root, width=50)
+listbox.pack(pady=5)
+
+clear_btn = tk.Button(root, text="Clear Captured Colors", command=clear_colors)
+clear_btn.pack(pady=5)
+
+exit_btn = tk.Button(root, text="Exit", command=root.destroy)
+exit_btn.pack(pady=5)
+
+root.mainloop()
