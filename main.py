@@ -6,10 +6,10 @@ from os.path import isfile
 
 HISTORY_FILE = "color_history.json"
 colorList = []
+display_format = "HEX"  # Can be "HEX" or "RGB"
 
 # ------------------- Persistence -------------------
 def load_history():
-    """Load color history from file at startup"""
     global colorList
     if isfile(HISTORY_FILE):
         with open(HISTORY_FILE, "r") as f:
@@ -21,26 +21,16 @@ def load_history():
         colorList = []
 
 def save_history():
-    """Save current color list to file"""
     with open(HISTORY_FILE, "w") as f:
         json.dump(colorList, f, indent=2)
 
 def clear_history():
-    """Clear color history both in memory and file"""
     global colorList
     colorList = []
     save_history()
     print("✅ Color history cleared.")
 
 # ------------------- Utilities -------------------
-def printColorList():
-    if not colorList:
-        print("⚠️ No colors stored yet.")
-        return
-    print("🎨 Colors detected are:")
-    for color in colorList:
-        print(f"   #{color}  (RGB: {hex_to_rgb(color)})")
-
 def getHex(rgb):
     return ''.join(hex(value)[2:].upper().zfill(2) for value in rgb)
 
@@ -48,15 +38,36 @@ def hex_to_rgb(hexcode):
     hexcode = hexcode.lstrip('#')
     return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
 
+def printColorList():
+    if not colorList:
+        print("⚠️ No colors stored yet.")
+        return
+    print(f"🎨 Colors in {display_format} format:")
+    for color in colorList:
+        if display_format == "HEX":
+            print(f"   #{color}")
+        else:
+            print(f"   {hex_to_rgb(color)}")
+
 def getColor(x, y):
     return ImageGrab.grab().getpixel((x, y))
 
 # ------------------- Capture Logic -------------------
 def onRel(key):
-    if key == keyboard.Key.delete:
-        print("🛑 Exiting color capture...")
-        save_history()  # auto-save on exit
-        return False  # Stops listener
+    global display_format
+    try:
+        if key == keyboard.Key.delete:
+            print("🛑 Exiting color capture...")
+            save_history()
+            return False
+        elif key.char.lower() == 'p':
+            printColorList()
+        elif key.char.lower() == 't':
+            display_format = "RGB" if display_format == "HEX" else "HEX"
+            print(f"🔄 Display format toggled to {display_format}")
+    except AttributeError:
+        # Special keys (like Delete) do not have 'char'
+        pass
 
 def onClick(x, y, button, press):
     if button == mouse.Button.right and press:
@@ -65,7 +76,11 @@ def onClick(x, y, button, press):
         if hex_color not in colorList:  # avoid duplicates
             colorList.append(hex_color)
             save_history()
-        print(f"Captured color at (x={x}, y={y}): #{hex_color} (RGB: {color})")
+        # Show color in current display format
+        if display_format == "HEX":
+            print(f"Captured color at ({x},{y}): #{hex_color}")
+        else:
+            print(f"Captured color at ({x},{y}): {color}")
 
 # ------------------- Export -------------------
 def exportToFile(file_path):
@@ -76,7 +91,10 @@ def exportToFile(file_path):
             return
     with open(file_path, "w") as f:
         for color in colorList:
-            f.write(f"#{color}\n")
+            if display_format == "HEX":
+                f.write(f"#{color}\n")
+            else:
+                f.write(f"{hex_to_rgb(color)}\n")
 
 def export_colors_to_file(file_path):
     if not colorList:
@@ -96,6 +114,8 @@ def main():
 def start_color_capture():
     print("👉 Right-click on the screen to capture colors.")
     print("👉 Press the Delete key to exit.")
+    print("👉 Press 'P' to print captured colors.")
+    print("👉 Press 'T' to toggle display format between HEX/RGB.")
     main()
 
 if __name__ == "__main__":
@@ -129,4 +149,6 @@ if __name__ == "__main__":
             break
         else:
             print("⚠️ Invalid choice. Please choose 1–6.")
+
+
 
