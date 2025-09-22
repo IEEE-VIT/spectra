@@ -3,42 +3,8 @@ from pynput import mouse
 from PIL import Image, ImageGrab
 from os.path import isfile
 import json
-import math
 
 history_file = "color_history.json"
-
-# Predefined CSS3 color names for mapping
-CSS3_COLORS = {
-    "White": (255, 255, 255),
-    "Silver": (192, 192, 192),
-    "Gray": (128, 128, 128),
-    "Black": (0, 0, 0),
-    "Red": (255, 0, 0),
-    "Maroon": (128, 0, 0),
-    "Yellow": (255, 255, 0),
-    "Olive": (128, 128, 0),
-    "Lime": (0, 255, 0),
-    "Green": (0, 128, 0),
-    "Aqua": (0, 255, 255),
-    "Teal": (0, 128, 128),
-    "Blue": (0, 0, 255),
-    "Navy": (0, 0, 128),
-    "Fuchsia": (255, 0, 255),
-    "Purple": (128, 0, 128),
-    "Orange": (255, 165, 0),
-    # Add more colors as needed
-}
-
-# FEATURE: Function to get nearest color name
-def get_nearest_color_name(rgb):
-    min_distance = float('inf')
-    nearest_color = None
-    for name, c_rgb in CSS3_COLORS.items():
-        distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(rgb, c_rgb)))
-        if distance < min_distance:
-            min_distance = distance
-            nearest_color = name
-    return nearest_color
 
 # Load history on startup
 if isfile(history_file):
@@ -47,19 +13,23 @@ if isfile(history_file):
 else:
     colorList = []
 
+# Function to save history
 def save_history():
     with open(history_file, "w") as f:
         json.dump(colorList, f)
 
+# Function to clear history
 def clear_history():
     global colorList
     colorList = []
     save_history()
     print("Color history cleared.")
 
+# Function to show total colors stored
 def show_history_count():
     print(f"Total colors stored: {len(colorList)}")
 
+# Function to print the color list
 def printColorList():
     print("Colors detected are:", end=" ")
     for color in colorList:
@@ -105,9 +75,7 @@ def onClick(x, y, button, press):
         hex_color = getHex(color)
         colorList.append(hex_color)
         save_history()
-        # FEATURE: Show hex, RGB, and nearest color name
-        nearest_name = get_nearest_color_name(color)
-        print(f"Color at mouse click (x={x}, y={y}): #{hex_color} | RGB: {color} | Name: {nearest_name}")
+        print(f"Color at mouse click (x={x}, y={y}): #{hex_color}")
 
 def main():
     with keyboard.Listener(on_release=onRel) as k:
