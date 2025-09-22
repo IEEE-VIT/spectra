@@ -1,3 +1,10 @@
+"""
+Color Capture Tool GUI
+
+This Tkinter-based application allows users to capture colors from the screen by right-clicking,
+display them as hexadecimal codes in a list, export them to a file, clear the list, and exit the program.
+"""
+
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from pynput import keyboard, mouse
@@ -10,10 +17,6 @@ exit_requested = False
 # ================= Utility Functions ================= #
 def getHex(rgb):
     return ''.join([hex(v)[2:].upper().zfill(2) for v in rgb])
-
-def hex_to_rgb(hexcode):
-    hexcode = hexcode.lstrip('#')
-    return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
 
 def getColor(x, y):
     return ImageGrab.grab().getpixel((x, y))
@@ -30,16 +33,13 @@ def onRel(key):
     global exit_requested
     if key == keyboard.Key.delete:
         exit_requested = True
-        print("Exiting color capture...")
         return False
 
 # ================= GUI Action Functions ================= #
 def start_capture():
     global exit_requested
     exit_requested = False
-    messagebox.showinfo("Instructions", "Right-click on the screen to capture colors.\nPress the Delete key to stop capturing.")
-
-    # Start listeners
+    messagebox.showinfo("Instructions", "Right-click anywhere on your screen to capture colors.\nPress Delete to stop capturing.")
     with keyboard.Listener(on_release=onRel) as k_listener:
         with mouse.Listener(on_click=onClick) as m_listener:
             k_listener.join()
@@ -51,7 +51,7 @@ def export_colors():
         messagebox.showwarning("Warning", "No colors to export!")
         return
     file_path = entry_path.get()
-    if not file_path:
+    if not file_path.strip():
         file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files","*.txt")])
         if not file_path:
             return
@@ -70,29 +70,28 @@ def clear_colors():
 # ================= GUI Setup ================= #
 root = tk.Tk()
 root.title("Color Capture Tool")
-root.geometry("500x400")
+root.geometry("500x450")
+
+# Description Label
+desc = "Capture colors from your screen by right-clicking.\nView hex codes, export to file, or clear the list."
+label_desc = tk.Label(root, text=desc, justify=tk.LEFT, wraplength=480)
+label_desc.pack(pady=10)
 
 # Buttons
-btn_start = tk.Button(root, text="Start Capturing Colors", command=start_capture, width=25)
-btn_start.pack(pady=10)
-
-btn_clear = tk.Button(root, text="Clear Colors", command=clear_colors, width=25)
-btn_clear.pack(pady=5)
-
-btn_export = tk.Button(root, text="Export Colors", command=export_colors, width=25)
-btn_export.pack(pady=5)
+tk.Button(root, text="Start Capturing Colors", command=start_capture, width=30).pack(pady=5)
+tk.Button(root, text="Clear Colors", command=clear_colors, width=30).pack(pady=5)
+tk.Button(root, text="Export Colors", command=export_colors, width=30).pack(pady=5)
 
 # Entry for file path
-entry_path = tk.Entry(root, width=40)
+entry_path = tk.Entry(root, width=50)
 entry_path.pack(pady=5)
 entry_path.insert(0, "Enter file path or leave empty to choose...")
 
-# Listbox to display captured colors
+# Listbox to show captured colors
 listbox = tk.Listbox(root, width=50)
 listbox.pack(pady=10, expand=True, fill=tk.BOTH)
 
-# Exit button
-btn_exit = tk.Button(root, text="Exit", command=root.destroy, width=25)
-btn_exit.pack(pady=10)
+# Exit Button
+tk.Button(root, text="Exit", command=root.destroy, width=30).pack(pady=10)
 
 root.mainloop()
