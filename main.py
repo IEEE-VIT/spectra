@@ -2,11 +2,18 @@ from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
 from os.path import isfile
+import json
 
 # These are the dependencies we will be using, we use pynput to record the input from either the mouse or the keyboard,
 # The cursor coordinates are used to capture the pixel the cursor is resting on, and whether or not the mouse has been clicked.
 
 colorList = []
+
+History_file = "color_history.json"
+
+def save_color_history():
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(colorList, f)
 
 # Function to print the color detected
 # Assuming it is stored hex code
