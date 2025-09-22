@@ -2,103 +2,145 @@ from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
 from os.path import isfile
+import json
+import math
 
-# These are the dependencies we will be using, we use pynput to record the input from either the mouse or the keyboard,
-# The cursor coordinates are used to capture the pixel the cursor is resting on, and whether or not the mouse has been clicked.
+history_file = "color_history.json"
 
-colorList = []
+# Predefined CSS3 color names for mapping
+CSS3_COLORS = {
+    "White": (255, 255, 255),
+    "Silver": (192, 192, 192),
+    "Gray": (128, 128, 128),
+    "Black": (0, 0, 0),
+    "Red": (255, 0, 0),
+    "Maroon": (128, 0, 0),
+    "Yellow": (255, 255, 0),
+    "Olive": (128, 128, 0),
+    "Lime": (0, 255, 0),
+    "Green": (0, 128, 0),
+    "Aqua": (0, 255, 255),
+    "Teal": (0, 128, 128),
+    "Blue": (0, 0, 255),
+    "Navy": (0, 0, 128),
+    "Fuchsia": (255, 0, 255),
+    "Purple": (128, 0, 128),
+    "Orange": (255, 165, 0),
+    # Add more colors as needed
+}
 
-# Function to print the color detected
-# Assuming it is stored hex code
-# colorList is a global variable
+# FEATURE: Function to get nearest color name
+def get_nearest_color_name(rgb):
+    min_distance = float('inf')
+    nearest_color = None
+    for name, c_rgb in CSS3_COLORS.items():
+        distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(rgb, c_rgb)))
+        if distance < min_distance:
+            min_distance = distance
+            nearest_color = name
+    return nearest_color
+
+# Load history on startup
+if isfile(history_file):
+    with open(history_file, "r") as f:
+        colorList = json.load(f)
+else:
+    colorList = []
+
+display_format_hex = True  # FEATURE: Keyboard shortcuts for HEX/RGB toggle
+
+def save_history():
+    with open(history_file, "w") as f:
+        json.dump(colorList, f)
+
+def clear_history():
+    global colorList
+    colorList = []
+    save_history()
+    print("Color history cleared.")
+
+def show_history_count():
+    print(f"Total colors stored: {len(colorList)}")
+
 def printColorList():
     print("Colors detected are:", end=" ")
     for color in colorList:
-        print(f"#{color}", end=" ")
+        if display_format_hex:
+            print(f"#{color}", end=" ")
+        else:
+            rgb = hex_to_rgb(color)
+            print(f"{rgb}", end=" ")
     print()
 
-# Flag to indicate whether exit has been requested
 exit_requested = False
 
-# Since we cannot keep the script running all the time,
-#  and it will only tell us the value of the color if we press the close button,
-#  we'll need to code an exit in some way. So we use a key on the keyboard to terminate the program.
 def onRel(key):
-    global exit_requested
-    #Setting Delete key as the exit key.
-    if key == keyboard.Key.delete:
-        #Stopping the Listener.
-        print("Exiting color capture...")
-        exit_requested = True
-        return False
+    global exit_requested, display_format_hex
+    try:
+        if key == keyboard.Key.delete:
+            print("Exiting color capture...")
+            exit_requested = True
+            return False
+        # FEATURE: Keyboard shortcuts for printing and toggling display
+        elif hasattr(key, 'char') and key.char:
+            if key.char.lower() == 'p':
+                printColorList()
+            elif key.char.lower() == 't':
+                display_format_hex = not display_format_hex
+                fmt = "HEX" if display_format_hex else "RGB"
+                print(f"Display format toggled to {fmt}")
+    except AttributeError:
+        pass
 
-# Function to export the colors detected to file_path
-# Assume that global colorList stores hexcodes of colors
-# If file_path is already present it raises Error
 def exportToFile(file_path):
-    # Stop processing mouse clicks when exit is requested
     if exit_requested:
-        return False  
+        return False
     if isfile(file_path):
         raise FileExistsError(f"{file_path} is already present")
     with open(file_path, "w") as f:
         for color in colorList:
-            f.write(f"#{color}\n")
+            if display_format_hex:
+                f.write(f"#{color}\n")
+            else:
+                f.write(f"{hex_to_rgb(color)}\n")
 
-# Function to get the hex code value which takes a tuple containing the red,green,blue values from 0-255.
 def getHex(rgb):
     output = ''
-    
-    for value in rgb :
+    for value in rgb:
         output += hex(value)[2:].upper().zfill(2)
-        
     return output
 
-# Function to convert hex code to RGB format
 def hex_to_rgb(hexcode):
-    # Remove the '#' if present
     hexcode = hexcode.lstrip('#')
-    
-    # Convert hex to RGB
     rgb = tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
     return rgb
 
-# The getColor function accepts 2 arguments, 1 x coordinate, 1 y coordinate, we capture or "grab" an image,
-# and based on the x-y coordinates we get the color at that particular pixel. 
-def getColor(x,y):
-    coor = x,y
-    
+def getColor(x, y):
+    coor = x, y
     return ImageGrab.grab().getpixel(coor)
 
-# Function to record whether or not the mouse has been clicked, takes x, y coordinates as arguments,
-#  and button specifies which particular botton is pressed(in our case, it would be 'right click'),
-#  and press is a boolean indicating if it has been pressed or not.
-def onClick(x,y,button,press):
-    # check if the pressed mouse button is the right button
+def onClick(x, y, button, press):
     if button == mouse.Button.right and press:
-        # get the color of the pixel at the coordinates x and y
         color = getColor(x, y)
-        # convert the color (RGB format) into a hexadecimal representation.
         hex_color = getHex(color)
-        
         colorList.append(hex_color)
-        print(f"Color at mouse click (x={x}, y={y}): #{hex_color}")
+        save_history()
+        nearest_name = get_nearest_color_name(color)
+        print(f"Color at mouse click (x={x}, y={y}): #{hex_color} | RGB: {color} | Name: {nearest_name}")
 
-# The main function that runs, to listen for keyboard, mouse inputs.
 def main():
     with keyboard.Listener(on_release=onRel) as k:
         with mouse.Listener(on_click=onClick) as m:
             k.join()
-            m.join()    
+            m.join()
 
-#This function provides user instructions for capturing colors from the screen and exiting the color capture process in a larger program.
 def start_color_capture():
     print("Right-click on the screen to capture colors.")
     print("Press the Delete key to exit.")
+    print("Press P to print tracked colors.")
+    print("Press T to toggle display format between HEX and RGB.")
     main()
 
-#This function exports detected colors to a file and provides user feedback on the export process, including success confirmation and error 
-# handling for existing files.
 def export_colors_to_file(file_path):
     print("Exporting detected colors to file...")
     try:
@@ -107,17 +149,22 @@ def export_colors_to_file(file_path):
     except FileExistsError as e:
         print(f"Error: {e}")
 
-#This code provides a user menu with options to capture colors or export colors to a file based on user input.
 if __name__ == "__main__":
     print("Color Capture Tool")
     print("1. Start capturing colors")
     print("2. Export colors to a file")
-    choice = input("Enter your choice (1/2): ")
+    print("3. Clear color history")
+    print("4. Show total colors stored")
+    choice = input("Enter your choice (1/2/3/4): ")
 
     if choice == '1':
         start_color_capture()
     elif choice == '2':
         file_path = input("Enter the file path to export colors: ")
         export_colors_to_file(file_path)
+    elif choice == '3':
+        clear_history()
+    elif choice == '4':
+        show_history_count()
     else:
-        print("Invalid choice. Please choose 1 or 2.")
+        print("Invalid choice. Please choose 1, 2, 3, or 4.")
