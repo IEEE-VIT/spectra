@@ -2,6 +2,8 @@ from pynput import keyboard
 from pynput import mouse
 from PIL import ImageGrab
 from os.path import isfile
+import json
+import csv
 
 colorList = []
 exit_requested = False
@@ -12,21 +14,6 @@ def printColorList():
     for color in colorList:
         print(f"#{color}", end=" ")
     print()
-
-def exportToFile(file_path):
-    if not colorList:
-        print("Warning: No colors captured yet. Nothing to export.")
-        return
-    if isfile(file_path):
-        print(f"Error: {file_path} already exists.")
-        return
-    try:
-        with open(file_path, "w") as f:
-            for color in colorList:
-                f.write(f"#{color}\n")
-        print(f"Colors exported to {file_path}")
-    except Exception as e:
-        print(f"Error exporting: {e}")
 
 def getHex(rgb):
     return ''.join(hex(v)[2:].upper().zfill(2) for v in rgb)
@@ -41,6 +28,59 @@ def onClick(x, y, button, press):
         colorList.append(hex_color)
         print(f"Color at mouse click (x={x}, y={y}): #{hex_color}")
 
+# ---------------- Export Function ---------------- #
+def exportToFile(file_path):
+    if not colorList:
+        print("Warning: No colors captured yet. Nothing to export.")
+        return
+    
+    ext = file_path.lower().split('.')[-1]
+
+    if ext == "txt":
+        if isfile(file_path):
+            print(f"Error: {file_path} already exists.")
+            return
+        with open(file_path, "w") as f:
+            for color in colorList:
+                f.write(f"#{color}\n")
+        print(f"Colors exported to {file_path} (TXT format)")
+
+    elif ext == "csv":
+        if isfile(file_path):
+            print(f"Error: {file_path} already exists.")
+            return
+        with open(file_path, "w", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["HEX", "R", "G", "B"])
+            for hex_color in colorList:
+                r = int(hex_color[0:2], 16)
+                g = int(hex_color[2:4], 16)
+                b = int(hex_color[4:6], 16)
+                writer.writerow([f"#{hex_color}", r, g, b])
+        print(f"Colors exported to {file_path} (CSV format)")
+
+    elif ext == "json":
+        if isfile(file_path):
+            print(f"Error: {file_path} already exists.")
+            return
+        with open(file_path, "w") as f:
+            json.dump([f"#{c}" for c in colorList], f)
+        print(f"Colors exported to {file_path} (JSON format)")
+
+    elif ext == "html":
+        if isfile(file_path):
+            print(f"Error: {file_path} already exists.")
+            return
+        with open(file_path, "w") as f:
+            f.write("<html><body><h2>Color Palette</h2>\n")
+            for hex_color in colorList:
+                f.write(f'<div style="display:inline-block;width:50px;height:50px;background-color:#{hex_color};margin:2px;"></div>\n')
+            f.write("</body></html>")
+        print(f"Colors exported to {file_path} (HTML format)")
+
+    else:
+        print(f"Error: Unsupported file extension '.{ext}'. Supported: txt, csv, json, html.")
+
 # ---------------- Keyboard Listener ---------------- #
 def onRel(key):
     global exit_requested
@@ -48,7 +88,6 @@ def onRel(key):
         if key.char and key.char.lower() == 'e':
             file_path = input("Enter file path to export colors: ")
             exportToFile(file_path)
-        # Exit key
     except AttributeError:
         if key == keyboard.Key.delete:
             print("Exiting color capture...")
