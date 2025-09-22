@@ -120,7 +120,7 @@ if __name__ == "__main__":
         file_path = input("Enter the file path to export colors: ")
         export_colors_to_file(file_path)
     else:
-        print("Invalid choice. Please choose 1 or 2.")'''
+        print("Invalid choice. Please choose 1 or 2.")
 from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
@@ -265,6 +265,152 @@ def export_colors_to_file(file_path):
 
 
 # Menu
+if __name__ == "__main__":
+    print("Color Capture Tool")
+    print("1. Start capturing colors")
+    print("2. Export colors to a file")
+    choice = input("Enter your choice (1/2): ")
+
+    if choice == '1':
+        start_color_capture()
+    elif choice == '2':
+        file_path = input("Enter the file path to export colors: ")
+        export_colors_to_file(file_path)
+    else:
+        print("Invalid choice. Please choose 1 or 2.")'''
+from pynput import keyboard
+from pynput import mouse
+from PIL import Image, ImageGrab
+from os.path import isfile
+
+# Global list of captured colors (stored in HEX internally)
+colorList = []
+
+# Exit flag
+exit_requested = False
+
+# Global display format (HEX or RGB)
+display_format = "HEX"
+
+
+# Function to print the color list
+def printColorList():
+    if not colorList:
+        print("No colors captured yet.")
+        return
+
+    print(f"Colors detected ({display_format}):", end=" ")
+
+    for color in colorList:
+        if display_format == "HEX":
+            print(f"#{color}", end=" ")
+        else:  # RGB mode
+            rgb = hex_to_rgb(color)
+            print(f"{rgb}", end=" ")
+    print()
+
+
+# Function to export the colors detected to file_path
+def exportToFile(file_path):
+    if exit_requested:
+        return False
+    if isfile(file_path):
+        raise FileExistsError(f"{file_path} is already present")
+    if not colorList:
+        print("No colors to export.")
+        return
+
+    with open(file_path, "w") as f:
+        for color in colorList:
+            if display_format == "HEX":
+                f.write(f"#{color}\n")
+            else:
+                f.write(f"{hex_to_rgb(color)}\n")
+
+
+# Convert RGB tuple to HEX string
+def getHex(rgb):
+    return "".join(hex(value)[2:].upper().zfill(2) for value in rgb)
+
+
+# Convert HEX string to RGB tuple
+def hex_to_rgb(hexcode):
+    hexcode = hexcode.lstrip('#')
+    return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
+
+
+# Capture pixel color at (x, y)
+def getColor(x, y):
+    return ImageGrab.grab().getpixel((x, y))
+
+
+# Mouse listener
+def onClick(x, y, button, press):
+    if exit_requested:
+        return False
+    if button == mouse.Button.right and press:
+        color = getColor(x, y)
+        hex_color = getHex(color)
+        colorList.append(hex_color)
+
+        if display_format == "HEX":
+            print(f"Color at (x={x}, y={y}): #{hex_color}")
+        else:
+            rgb = hex_to_rgb(hex_color)
+            print(f"Color at (x={x}, y={y}): {rgb}")
+
+
+# Keyboard listener
+def onRel(key):
+    global exit_requested, display_format
+
+    try:
+        if key == keyboard.Key.delete:
+            print("Exiting color capture...")
+            exit_requested = True
+            return False
+
+        elif key.char.lower() == 'p':  # Print colors
+            printColorList()
+
+        elif key.char.lower() == 't':  # Toggle format
+            display_format = "RGB" if display_format == "HEX" else "HEX"
+            print(f"Switched display/export format to {display_format}.")
+
+    except AttributeError:
+        # Ignore special keys that don't have .char
+        pass
+
+
+# Main listener loop
+def main():
+    with keyboard.Listener(on_release=onRel) as k:
+        with mouse.Listener(on_click=onClick) as m:
+            k.join()
+            m.join()
+
+
+# Start capturing
+def start_color_capture():
+    print("Right-click on the screen to capture colors.")
+    print("Keyboard shortcuts:")
+    print("  [P] → Print all tracked colors")
+    print("  [T] → Toggle between HEX and RGB mode")
+    print("  [Delete] → Exit capture")
+    main()
+
+
+# Export detected colors
+def export_colors_to_file(file_path):
+    print("Exporting detected colors to file...")
+    try:
+        exportToFile(file_path)
+        print(f"Colors exported to {file_path}")
+    except FileExistsError as e:
+        print(f"Error: {e}")
+
+
+# CLI menu
 if __name__ == "__main__":
     print("Color Capture Tool")
     print("1. Start capturing colors")
