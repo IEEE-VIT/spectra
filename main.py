@@ -1,13 +1,12 @@
-from pynput import keyboard
-from pynput import mouse
-from PIL import Image, ImageGrab
+from pynput import keyboard, mouse
+from PIL import ImageGrab
 from os.path import isfile
 import json
 import math
 
 history_file = "color_history.json"
 
-# Predefined CSS3 color names for mapping
+# Predefined CSS3 colors
 CSS3_COLORS = {
     "White": (255, 255, 255),
     "Silver": (192, 192, 192),
@@ -26,29 +25,19 @@ CSS3_COLORS = {
     "Fuchsia": (255, 0, 255),
     "Purple": (128, 0, 128),
     "Orange": (255, 165, 0),
-    # Add more colors as needed
 }
 
-# FEATURE: Function to get nearest color name
-def get_nearest_color_name(rgb):
-    min_distance = float('inf')
-    nearest_color = None
-    for name, c_rgb in CSS3_COLORS.items():
-        distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(rgb, c_rgb)))
-        if distance < min_distance:
-            min_distance = distance
-            nearest_color = name
-    return nearest_color
-
-# Load history on startup
+# Load color history
 if isfile(history_file):
     with open(history_file, "r") as f:
         colorList = json.load(f)
 else:
     colorList = []
 
-display_format_hex = True  # FEATURE: Keyboard shortcuts for HEX/RGB toggle
+display_format_hex = True
+exit_requested = False
 
+# Helper functions
 def save_history():
     with open(history_file, "w") as f:
         json.dump(colorList, f)
@@ -62,17 +51,54 @@ def clear_history():
 def show_history_count():
     print(f"Total colors stored: {len(colorList)}")
 
+def getHex(rgb):
+    return ''.join(hex(v)[2:].upper().zfill(2) for v in rgb)
+
+def hex_to_rgb(hexcode):
+    hexcode = hexcode.lstrip('#')
+    return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
+
+def get_nearest_color_name(rgb):
+    min_dist = float('inf')
+    nearest = None
+    for name, c_rgb in CSS3_COLORS.items():
+        dist = math.sqrt(sum((a-b)**2 for a,b in zip(rgb, c_rgb)))
+        if dist < min_dist:
+            min_dist = dist
+            nearest = name
+    return nearest
+
 def printColorList():
-    print("Colors detected are:", end=" ")
+    print("Colors detected:", end=" ")
     for color in colorList:
         if display_format_hex:
             print(f"#{color}", end=" ")
         else:
-            rgb = hex_to_rgb(color)
-            print(f"{rgb}", end=" ")
+            print(hex_to_rgb(color), end=" ")
     print()
 
-exit_requested = False
+def getColor(x, y):
+    return ImageGrab.grab().getpixel((x, y))
+
+def exportToFile(file_path):
+    if not colorList:
+        print("No colors captured. Export cancelled.")
+        return
+    if isfile(file_path):
+        raise FileExistsError(f"{file_path} already exists")
+    with open(file_path, "w") as f:
+        for color in colorList:
+            f.write(f"#{color}\n" if display_format_hex else f"{hex_to_rgb(color)}\n")
+
+# Event handlers
+def onClick(x, y, button, press):
+    if button == mouse.Button.right and press:
+        color = getColor(x, y)
+        hex_color = getHex(color)
+        colorList.append(hex_color)
+        save_history()
+        nearest_name = get_nearest_color_name(color)
+        print(f"Captured: #{hex_color} | RGB: {color} | Name: {nearest_name}")
 
 def onRel(key):
     global exit_requested, display_format_hex
@@ -81,90 +107,46 @@ def onRel(key):
             print("Exiting color capture...")
             exit_requested = True
             return False
-        # FEATURE: Keyboard shortcuts for printing and toggling display
         elif hasattr(key, 'char') and key.char:
-            if key.char.lower() == 'p':
+            c = key.char.lower()
+            if c == 'p':
                 printColorList()
-            elif key.char.lower() == 't':
+            elif c == 't':
                 display_format_hex = not display_format_hex
-                fmt = "HEX" if display_format_hex else "RGB"
-                print(f"Display format toggled to {fmt}")
+                print(f"Display format toggled to {'HEX' if display_format_hex else 'RGB'}")
+            elif c == 'e':
+                file_path = input("Enter file path to export colors: ")
+                try:
+                    exportToFile(file_path)
+                    print(f"Colors exported to {file_path}")
+                except FileExistsError:
+                    print(f"Error: File '{file_path}' already exists. Choose another name.")
     except AttributeError:
         pass
 
-def exportToFile(file_path):
-    if exit_requested:
-        return False
-    if isfile(file_path):
-        raise FileExistsError(f"{file_path} is already present")
-    with open(file_path, "w") as f:
-        for color in colorList:
-            if display_format_hex:
-                f.write(f"#{color}\n")
-            else:
-                f.write(f"{hex_to_rgb(color)}\n")
-
-def getHex(rgb):
-    output = ''
-    for value in rgb:
-        output += hex(value)[2:].upper().zfill(2)
-    return output
-
-def hex_to_rgb(hexcode):
-    hexcode = hexcode.lstrip('#')
-    rgb = tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
-    return rgb
-
-def getColor(x, y):
-    coor = x, y
-    return ImageGrab.grab().getpixel(coor)
-
-def onClick(x, y, button, press):
-    if button == mouse.Button.right and press:
-        color = getColor(x, y)
-        hex_color = getHex(color)
-        colorList.append(hex_color)
-        save_history()
-        nearest_name = get_nearest_color_name(color)
-        print(f"Color at mouse click (x={x}, y={y}): #{hex_color} | RGB: {color} | Name: {nearest_name}")
-
-def main():
+def start_color_capture():
+    print("Right-click to capture colors.")
+    print("Press Delete to exit.")
+    print("Press P to print tracked colors.")
+    print("Press T to toggle HEX/RGB display.")
+    print("Press E to export colors to file.")
     with keyboard.Listener(on_release=onRel) as k:
         with mouse.Listener(on_click=onClick) as m:
             k.join()
             m.join()
 
-def start_color_capture():
-    print("Right-click on the screen to capture colors.")
-    print("Press the Delete key to exit.")
-    print("Press P to print tracked colors.")
-    print("Press T to toggle display format between HEX and RGB.")
-    main()
-
-def export_colors_to_file(file_path):
-    print("Exporting detected colors to file...")
-    try:
-        exportToFile(file_path)
-        print(f"Colors exported to {file_path}")
-    except FileExistsError as e:
-        print(f"Error: {e}")
-
 if __name__ == "__main__":
-    print("Color Capture Tool")
-    print("1. Start capturing colors")
-    print("2. Export colors to a file")
-    print("3. Clear color history")
-    print("4. Show total colors stored")
-    choice = input("Enter your choice (1/2/3/4): ")
-
-    if choice == '1':
-        start_color_capture()
-    elif choice == '2':
-        file_path = input("Enter the file path to export colors: ")
-        export_colors_to_file(file_path)
-    elif choice == '3':
-        clear_history()
-    elif choice == '4':
-        show_history_count()
-    else:
-        print("Invalid choice. Please choose 1, 2, 3, or 4.")
+    while True:
+        print("\nColor Capture Tool")
+        print("1. Start capturing colors")
+        print("2. Clear color history")
+        print("3. Show total colors stored")
+        choice = input("Enter choice (1/2/3): ")
+        if choice == '1':
+            start_color_capture()
+        elif choice == '2':
+            clear_history()
+        elif choice == '3':
+            show_history_count()
+        else:
+            print("Invalid choice. Try again.")
