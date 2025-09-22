@@ -4,6 +4,7 @@ from PIL import ImageGrab
 from os.path import isfile
 import json
 import csv
+import os
 
 colorList = []
 exit_requested = False
@@ -29,57 +30,85 @@ def onClick(x, y, button, press):
         print(f"Color at mouse click (x={x}, y={y}): #{hex_color}")
 
 # ---------------- Export Function ---------------- #
+def get_unique_filename(base_path):
+    name, ext = os.path.splitext(base_path)
+    counter = 1
+    new_path = f"{name}_{counter}{ext}"
+    while os.path.exists(new_path):
+        counter += 1
+        new_path = f"{name}_{counter}{ext}"
+    return new_path
+
 def exportToFile(file_path):
     if not colorList:
         print("Warning: No colors captured yet. Nothing to export.")
         return
-    
+
     ext = file_path.lower().split('.')[-1]
 
-    if ext == "txt":
-        if isfile(file_path):
-            print(f"Error: {file_path} already exists.")
+    if isfile(file_path):
+        print(f"File {file_path} already exists.")
+        print("Options:\n1. Overwrite\n2. Append\n3. Auto-generate new filename")
+        choice = input("Choose an option (1/2/3): ").strip()
+        if choice == '1':
+            mode = 'w'
+        elif choice == '2':
+            mode = 'a'
+        elif choice == '3':
+            file_path = get_unique_filename(file_path)
+            mode = 'w'
+            print(f"Using new filename: {file_path}")
+        else:
+            print("Invalid choice. Export cancelled.")
             return
-        with open(file_path, "w") as f:
-            for color in colorList:
-                f.write(f"#{color}\n")
-        print(f"Colors exported to {file_path} (TXT format)")
-
-    elif ext == "csv":
-        if isfile(file_path):
-            print(f"Error: {file_path} already exists.")
-            return
-        with open(file_path, "w", newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["HEX", "R", "G", "B"])
-            for hex_color in colorList:
-                r = int(hex_color[0:2], 16)
-                g = int(hex_color[2:4], 16)
-                b = int(hex_color[4:6], 16)
-                writer.writerow([f"#{hex_color}", r, g, b])
-        print(f"Colors exported to {file_path} (CSV format)")
-
-    elif ext == "json":
-        if isfile(file_path):
-            print(f"Error: {file_path} already exists.")
-            return
-        with open(file_path, "w") as f:
-            json.dump([f"#{c}" for c in colorList], f)
-        print(f"Colors exported to {file_path} (JSON format)")
-
-    elif ext == "html":
-        if isfile(file_path):
-            print(f"Error: {file_path} already exists.")
-            return
-        with open(file_path, "w") as f:
-            f.write("<html><body><h2>Color Palette</h2>\n")
-            for hex_color in colorList:
-                f.write(f'<div style="display:inline-block;width:50px;height:50px;background-color:#{hex_color};margin:2px;"></div>\n')
-            f.write("</body></html>")
-        print(f"Colors exported to {file_path} (HTML format)")
-
     else:
-        print(f"Error: Unsupported file extension '.{ext}'. Supported: txt, csv, json, html.")
+        mode = 'w'
+
+    try:
+        if ext == "txt":
+            with open(file_path, mode) as f:
+                for color in colorList:
+                    f.write(f"#{color}\n")
+            print(f"Colors exported to {file_path} (TXT format)")
+
+        elif ext == "csv":
+            write_header = mode == 'w'
+            with open(file_path, mode, newline='') as f:
+                writer = csv.writer(f)
+                if write_header:
+                    writer.writerow(["HEX", "R", "G", "B"])
+                for hex_color in colorList:
+                    r = int(hex_color[0:2], 16)
+                    g = int(hex_color[2:4], 16)
+                    b = int(hex_color[4:6], 16)
+                    writer.writerow([f"#{hex_color}", r, g, b])
+            print(f"Colors exported to {file_path} (CSV format)")
+
+        elif ext == "json":
+            existing_data = []
+            if mode == 'a' and os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    existing_data = json.load(f)
+            with open(file_path, 'w') as f:
+                json.dump(existing_data + [f"#{c}" for c in colorList], f)
+            print(f"Colors exported to {file_path} (JSON format)")
+
+        elif ext == "html":
+            # For append mode, simply create new file
+            if mode == 'a' and os.path.exists(file_path):
+                print("Append mode is not supported for HTML. Overwriting.")
+                mode = 'w'
+            with open(file_path, mode) as f:
+                f.write("<html><body><h2>Color Palette</h2>\n")
+                for hex_color in colorList:
+                    f.write(f'<div style="display:inline-block;width:50px;height:50px;background-color:#{hex_color};margin:2px;"></div>\n')
+                f.write("</body></html>")
+            print(f"Colors exported to {file_path} (HTML format)")
+
+        else:
+            print(f"Error: Unsupported file extension '.{ext}'. Supported: txt, csv, json, html.")
+    except Exception as e:
+        print(f"Error exporting: {e}")
 
 # ---------------- Keyboard Listener ---------------- #
 def onRel(key):
