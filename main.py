@@ -2,6 +2,7 @@ from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
 from os.path import isfile
+import webcolors
 
 # These are the dependencies we will be using, we use pynput to record the input from either the mouse or the keyboard,
 # The cursor coordinates are used to capture the pixel the cursor is resting on, and whether or not the mouse has been clicked.
@@ -121,3 +122,13 @@ if __name__ == "__main__":
         export_colors_to_file(file_path)
     else:
         print("Invalid choice. Please choose 1 or 2.")
+
+def closest_colour(requested_rgb):
+    min_colours={}
+    for hex_code,name in webcolors.CSS3_HEX_TO_NAMES.items():
+        r_c,g_c, b_c = webcolors.hex_to_rgb(hex_code)
+        dist=(r_c - requested_rgb[0])**2+ (g_c - requested_rgb[1])**2 +(b_c - requested_rgb[2])**2
+        min_colours[dist] = name
+        return
+    min_colours[min(min_colours.keys())]
+        
