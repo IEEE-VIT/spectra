@@ -1,14 +1,15 @@
-from pynput import keyboard
-from pynput import mouse
-from PIL import Image, ImageGrab
-from os.path import isfile
+import tkinter as tk
+from tkinter import messagebox, filedialog
+from pynput import keyboard, mouse
+from PIL import ImageGrab
 import json
 import os
 
 # Persistent history file
 HISTORY_FILE = "color_history.json"
-
 colorList = []
+exit_requested = False
+listener_running = False
 
 # ---------------- Persistence Functions ---------------- #
 def load_history():
@@ -17,9 +18,7 @@ def load_history():
         try:
             with open(HISTORY_FILE, "r") as f:
                 colorList = json.load(f)
-            print(f"Loaded {len(colorList)} colors from history.")
         except Exception:
-            print("History file is corrupted. Starting fresh.")
             colorList = []
     else:
         colorList = []
@@ -32,95 +31,102 @@ def clear_history():
     global colorList
     colorList = []
     save_history()
-    print("History cleared.")
+    update_listbox()
+    messagebox.showinfo("Info", "History cleared.")
 
 # ---------------- Utility Functions ---------------- #
-def printColorList():
-    print("Colors detected are:", end=" ")
-    for color in colorList:
-        print(f"#{color}", end=" ")
-    print()
-
-exit_requested = False
-
-def onRel(key):
-    global exit_requested
-    if key == keyboard.Key.delete:
-        print("Exiting color capture...")
-        exit_requested = True
-        return False
-
-def exportToFile(file_path):
-    if exit_requested:
-        return False  
-    if isfile(file_path):
-        raise FileExistsError(f"{file_path} is already present")
-    with open(file_path, "w") as f:
-        for color in colorList:
-            f.write(f"#{color}\n")
-
 def getHex(rgb):
     return ''.join(hex(v)[2:].upper().zfill(2) for v in rgb)
-
-def hex_to_rgb(hexcode):
-    hexcode = hexcode.lstrip('#')
-    return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
 
 def getColor(x, y):
     return ImageGrab.grab().getpixel((x, y))
 
 def onClick(x, y, button, press):
-    if button == mouse.Button.right and press:
+    global listener_running
+    if button == mouse.Button.right and press and listener_running:
         color = getColor(x, y)
         hex_color = getHex(color)
         colorList.append(hex_color)
-        save_history()  # persist immediately
-        print(f"Color at mouse click (x={x}, y={y}): #{hex_color}")
+        save_history()
+        update_listbox()
 
-def main():
+def onRel(key):
+    global exit_requested, listener_running
+    if key == keyboard.Key.delete and listener_running:
+        exit_requested = True
+        listener_running = False
+        messagebox.showinfo("Capture Stopped", "Stopped capturing colors. (Delete pressed)")
+        return False
+
+def start_capture():
+    global listener_running, exit_requested
+    if listener_running:
+        messagebox.showwarning("Warning", "Capture is already running!")
+        return
+    exit_requested = False
+    listener_running = True
+    messagebox.showinfo("Instructions", "Right-click to capture colors.\nPress Delete to stop.")
     with keyboard.Listener(on_release=onRel) as k:
         with mouse.Listener(on_click=onClick) as m:
             k.join()
-            m.join()    
+            m.join()
 
-def start_color_capture():
-    print("Right-click on the screen to capture colors.")
-    print("Press the Delete key to exit.")
-    main()
-
-def export_colors_to_file(file_path):
-    print("Exporting detected colors to file...")
+def export_colors():
+    if not colorList:
+        messagebox.showwarning("Warning", "No colors to export!")
+        return
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".txt",
+        filetypes=[("Text files", "*.txt")]
+    )
+    if not file_path:
+        return
+    if os.path.exists(file_path):
+        messagebox.showerror("Error", f"{file_path} already exists.")
+        return
     try:
-        exportToFile(file_path)
-        print(f"Colors exported to {file_path}")
-    except FileExistsError as e:
-        print(f"Error: {e}")
+        with open(file_path, "w") as f:
+            for color in colorList:
+                f.write(f"#{color}\n")
+        messagebox.showinfo("Success", f"Colors exported to {file_path}")
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
 
-# ---------------- Main Menu ---------------- #
-if __name__ == "__main__":
-    load_history()
+# ---------------- GUI ---------------- #
+def update_listbox():
+    listbox.delete(0, tk.END)
+    for c in colorList:
+        listbox.insert(tk.END, f"#{c}")
+    count_label.config(text=f"Total Colors: {len(colorList)}")
 
-    while True:
-        print("\nColor Capture Tool")
-        print("1. Start capturing colors")
-        print("2. Export colors to a file")
-        print("3. Show number of stored colors")
-        print("4. Clear history")
-        print("5. Exit")
+def exit_app():
+    root.destroy()
 
-        choice = input("Enter your choice (1-5): ")
+# Load history initially
+load_history()
 
-        if choice == '1':
-            start_color_capture()
-        elif choice == '2':
-            file_path = input("Enter the file path to export colors: ")
-            export_colors_to_file(file_path)
-        elif choice == '3':
-            print(f"Total colors stored: {len(colorList)}")
-        elif choice == '4':
-            clear_history()
-        elif choice == '5':
-            print("Goodbye!")
-            break
-        else:
-            print("Invalid choice. Please choose 1–5.")
+# Build GUI
+root = tk.Tk()
+root.title("Color Capture Tool")
+root.geometry("400x400")
+
+btn_start = tk.Button(root, text="Start Capturing", command=lambda: root.after(100, start_capture))
+btn_start.pack(pady=5)
+
+btn_export = tk.Button(root, text="Export Colors", command=export_colors)
+btn_export.pack(pady=5)
+
+btn_clear = tk.Button(root, text="Clear History", command=clear_history)
+btn_clear.pack(pady=5)
+
+count_label = tk.Label(root, text=f"Total Colors: {len(colorList)}")
+count_label.pack(pady=5)
+
+listbox = tk.Listbox(root, height=10, width=30)
+listbox.pack(pady=5)
+
+btn_exit = tk.Button(root, text="Exit", command=exit_app)
+btn_exit.pack(pady=10)
+
+update_listbox()
+root.mainloop()
