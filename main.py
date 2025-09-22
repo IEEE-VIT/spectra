@@ -168,3 +168,20 @@ if __name__ == "__main__":
         show_history_count()
     else:
         print("Invalid choice. Please choose 1, 2, 3, or 4.")
+import webcolors
+
+def hex_to_name(hex_code):
+    try:
+        return webcolors.hex_to_name(hex_code)
+    except ValueError:
+        # fallback: closest match
+        rgb = webcolors.hex_to_rgb(hex_code)
+        min_colors = {}
+        for key, name in webcolors.CSS3_HEX_TO_NAMES.items():
+            r_c, g_c, b_c = webcolors.hex_to_rgb(key)
+            rd = (r_c - rgb.red) ** 2
+            gd = (g_c - rgb.green) ** 2
+            bd = (b_c - rgb.blue) ** 2
+            min_colors[(rd + gd + bd)] = name
+        return min_colors[min(min_colors.keys())]
+
