@@ -2,11 +2,16 @@ from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
 from os.path import isfile
+import tkinter as tk
+from tkinter import messagebox, filedialog, simpledialog
+import threading
 
 # These are the dependencies we will be using, we use pynput to record the input from either the mouse or the keyboard,
 # The cursor coordinates are used to capture the pixel the cursor is resting on, and whether or not the mouse has been clicked.
 
 colorList = []
+mouse_listener = None
+keyboard_listener = None
 
 # Function to print the color detected
 # Assuming it is stored hex code
@@ -17,6 +22,9 @@ def printColorList():
         print(f"#{color}", end=" ")
     print()
 
+def getColorListStr():
+    return ' '.join(f"#{color}" for color in colorList)
+
 # Flag to indicate whether exit has been requested
 exit_requested = False
 
@@ -25,18 +33,15 @@ exit_requested = False
 #  we'll need to code an exit in some way. So we use a key on the keyboard to terminate the program.
 def onRel(key):
     global exit_requested
-    #Setting Delete key as the exit key.
     if key == keyboard.Key.delete:
-        #Stopping the Listener.
-        print("Exiting color capture...")
         exit_requested = True
+        print("Exiting color capture...")
         return False
 
 # Function to export the colors detected to file_path
 # Assume that global colorList stores hexcodes of colors
 # If file_path is already present it raises Error
 def exportToFile(file_path):
-    # Stop processing mouse clicks when exit is requested
     if exit_requested:
         return False  
     if isfile(file_path):
@@ -73,23 +78,25 @@ def getColor(x,y):
 # Function to record whether or not the mouse has been clicked, takes x, y coordinates as arguments,
 #  and button specifies which particular botton is pressed(in our case, it would be 'right click'),
 #  and press is a boolean indicating if it has been pressed or not.
-def onClick(x,y,button,press):
-    # check if the pressed mouse button is the right button
+def onClick(x, y, button, press):
     if button == mouse.Button.right and press:
-        # get the color of the pixel at the coordinates x and y
         color = getColor(x, y)
-        # convert the color (RGB format) into a hexadecimal representation.
         hex_color = getHex(color)
-        
         colorList.append(hex_color)
         print(f"Color at mouse click (x={x}, y={y}): #{hex_color}")
+        # If GUI is running, update the color list display
+        if 'update_color_list_gui' in globals():
+            update_color_list_gui()
 
 # The main function that runs, to listen for keyboard, mouse inputs.
 def main():
+    global mouse_listener, keyboard_listener
     with keyboard.Listener(on_release=onRel) as k:
         with mouse.Listener(on_click=onClick) as m:
+            mouse_listener = m
+            keyboard_listener = k
             k.join()
-            m.join()    
+            m.join()
 
 #This function provides user instructions for capturing colors from the screen and exiting the color capture process in a larger program.
 def start_color_capture():
@@ -107,17 +114,66 @@ def export_colors_to_file(file_path):
     except FileExistsError as e:
         print(f"Error: {e}")
 
+# --- Tkinter GUI Implementation ---
+def run_color_capture_thread():
+    # Run color capture in a thread so GUI doesn't freeze
+    t = threading.Thread(target=start_color_capture)
+    t.daemon = True
+    t.start()
+
+def gui_export_colors():
+    if not colorList:
+        messagebox.showinfo("No Colors", "No colors to export.")
+        return
+    file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+    if not file_path:
+        return
+    try:
+        exportToFile(file_path)
+        messagebox.showinfo("Export Successful", f"Colors exported to {file_path}")
+    except FileExistsError:
+        messagebox.showerror("File Exists", f"{file_path} already exists.")
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+
+def update_color_list_gui():
+    if 'color_list_var' in globals():
+        color_list_var.set(getColorListStr())
+
+def clear_colors():
+    colorList.clear()
+    update_color_list_gui()
+
+def show_instructions():
+    messagebox.showinfo("Instructions", "Click 'Start Capturing Colors' and right-click anywhere on the screen to capture a color.\nPress the Delete key to stop capturing.")
+
+def launch_gui():
+    global color_list_var, update_color_list_gui
+    root = tk.Tk()
+    root.title("Color Capture Tool")
+    root.geometry("420x220")
+
+    tk.Label(root, text="Color Capture Tool", font=("Arial", 16, "bold")).pack(pady=8)
+
+    btn_frame = tk.Frame(root)
+    btn_frame.pack(pady=4)
+
+    tk.Button(btn_frame, text="Start Capturing Colors", command=run_color_capture_thread, width=22).grid(row=0, column=0, padx=5)
+    tk.Button(btn_frame, text="Export Colors to File", command=gui_export_colors, width=22).grid(row=0, column=1, padx=5)
+    tk.Button(btn_frame, text="Clear Colors", command=clear_colors, width=22).grid(row=1, column=0, padx=5, pady=4)
+    tk.Button(btn_frame, text="Instructions", command=show_instructions, width=22).grid(row=1, column=1, padx=5, pady=4)
+
+    color_list_var = tk.StringVar()
+    color_list_var.set("")
+    tk.Label(root, text="Colors detected:").pack()
+    color_list_label = tk.Label(root, textvariable=color_list_var, wraplength=400, justify="left", bg="#f0f0f0", anchor="w")
+    color_list_label.pack(fill="x", padx=10, pady=4)
+
+    # Make update_color_list_gui accessible to mouse callback
+    globals()['update_color_list_gui'] = update_color_list_gui
+
+    root.mainloop()
+
 #This code provides a user menu with options to capture colors or export colors to a file based on user input.
 if __name__ == "__main__":
-    print("Color Capture Tool")
-    print("1. Start capturing colors")
-    print("2. Export colors to a file")
-    choice = input("Enter your choice (1/2): ")
-
-    if choice == '1':
-        start_color_capture()
-    elif choice == '2':
-        file_path = input("Enter the file path to export colors: ")
-        export_colors_to_file(file_path)
-    else:
-        print("Invalid choice. Please choose 1 or 2.")
+    launch_gui()
