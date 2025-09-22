@@ -2,11 +2,30 @@ from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
 from os.path import isfile
+import json
+
 
 # These are the dependencies we will be using, we use pynput to record the input from either the mouse or the keyboard,
 # The cursor coordinates are used to capture the pixel the cursor is resting on, and whether or not the mouse has been clicked.
-
+history_file = "colour_history.json"
 colorList = []
+
+#Load existing history at startup
+def load_history():
+    global colorList
+    if isfile(history_file ):
+        with open(history_file, "r") as f:
+            try:
+                colorList = json.load(f)
+            except json.JSONDecodeError:
+                colorList = []
+    else:
+        colorList = []
+
+def save_history():
+    with open(history_file,"w") as f:
+        json.dump(colorlist,f)
+
 
 # Function to print the color detected
 # Assuming it is stored hex code
@@ -119,5 +138,15 @@ if __name__ == "__main__":
     elif choice == '2':
         file_path = input("Enter the file path to export colors: ")
         export_colors_to_file(file_path)
+    elif choice == '3':
+        show_total_colors()
+    elif choice == '4':
+        clear_history()
+    elif choice == "5":
+        printcolorlist()
+    elif choice == "6":
+        save_history()
+        print("Goodbye!")
+        break
     else:
-        print("Invalid choice. Please choose 1 or 2.")
+        print("Invalid choice. Please choose 1 or 6.")
