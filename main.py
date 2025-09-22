@@ -277,7 +277,7 @@ if __name__ == "__main__":
         file_path = input("Enter the file path to export colors: ")
         export_colors_to_file(file_path)
     else:
-        print("Invalid choice. Please choose 1 or 2.")'''
+        print("Invalid choice. Please choose 1 or 2.")
 from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
@@ -421,6 +421,140 @@ if __name__ == "__main__":
         start_color_capture()
     elif choice == '2':
         file_path = input("Enter the file path to export colors: ")
+        export_colors_to_file(file_path)
+    else:
+        print("Invalid choice. Please choose 1 or 2.")'''
+from pynput import keyboard 
+from pynput import mouse
+from PIL import Image, ImageGrab
+from os.path import isfile, splitext
+import os
+
+# Global list of captured colors
+colorList = []
+
+# Flag to indicate whether exit has been requested
+exit_requested = False
+
+# Function to print captured colors
+def printColorList():
+    print("Colors detected are:", end=" ")
+    for color in colorList:
+        print(f"#{color}", end=" ")
+    print()
+
+
+# Convert RGB tuple to hex
+def getHex(rgb):
+    return "".join(hex(value)[2:].upper().zfill(2) for value in rgb)
+
+
+# Convert hex to RGB tuple
+def hex_to_rgb(hexcode):
+    hexcode = hexcode.lstrip('#')
+    return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
+
+
+# Capture color at coordinates
+def getColor(x, y):
+    return ImageGrab.grab().getpixel((x, y))
+
+
+# Handle mouse clicks
+def onClick(x, y, button, press):
+    if exit_requested:
+        return False
+    if button == mouse.Button.right and press:
+        color = getColor(x, y)
+        hex_color = getHex(color)
+        colorList.append(hex_color)
+        print(f"Color at mouse click (x={x}, y={y}): #{hex_color}")
+
+
+# Handle keyboard events
+def onRel(key):
+    global exit_requested
+    if key == keyboard.Key.delete:
+        print("Exiting color capture...")
+        exit_requested = True
+        return False
+
+
+# Export colors to file with options
+def exportToFile(file_path):
+    if exit_requested:
+        return False  
+
+    if isfile(file_path):
+        print(f"The file '{file_path}' already exists.")
+        print("Choose an option:")
+        print("1: Overwrite")
+        print("2: Append")
+        print("3: Auto-generate new filename")
+        option = input("Enter 1, 2, or 3: ").strip()
+
+        if option == '1':
+            mode = 'w'
+        elif option == '2':
+            mode = 'a'
+        elif option == '3':
+            base, ext = splitext(file_path)
+            counter = 1
+            new_file = f"{base}_{counter}{ext}"
+            while isfile(new_file):
+                counter += 1
+                new_file = f"{base}_{counter}{ext}"
+            file_path = new_file
+            mode = 'w'
+            print(f"Auto-generated filename: {file_path}")
+        else:
+            print("Invalid option. Export cancelled.")
+            return
+
+    else:
+        mode = 'w'
+
+    with open(file_path, mode) as f:
+        for color in colorList:
+            f.write(f"#{color}\n")
+
+
+# Main function to listen for keyboard and mouse
+def main():
+    with keyboard.Listener(on_release=onRel) as k:
+        with mouse.Listener(on_click=onClick) as m:
+            k.join()
+            m.join()
+
+
+# Start color capture
+def start_color_capture():
+    print("Right-click on the screen to capture colors.")
+    print("Press the Delete key to exit.")
+    main()
+
+
+# Export colors with feedback
+def export_colors_to_file(file_path):
+    print("Exporting detected colors to file...")
+    try:
+        exportToFile(file_path)
+        print(f"Colors exported to {file_path}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+# CLI menu
+if __name__ == "__main__":
+    print("Color Capture Tool")
+    print("1. Start capturing colors")
+    print("2. Export colors to a file")
+    choice = input("Enter your choice (1/2): ").strip()
+
+    if choice == '1':
+        start_color_capture()
+    elif choice == '2':
+        file_path = input("Enter the file path to export colors: ").strip()
         export_colors_to_file(file_path)
     else:
         print("Invalid choice. Please choose 1 or 2.")
