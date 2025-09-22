@@ -47,6 +47,8 @@ if isfile(history_file):
 else:
     colorList = []
 
+display_format_hex = True  # FEATURE: Keyboard shortcuts for HEX/RGB toggle
+
 def save_history():
     with open(history_file, "w") as f:
         json.dump(colorList, f)
@@ -63,17 +65,32 @@ def show_history_count():
 def printColorList():
     print("Colors detected are:", end=" ")
     for color in colorList:
-        print(f"#{color}", end=" ")
+        if display_format_hex:
+            print(f"#{color}", end=" ")
+        else:
+            rgb = hex_to_rgb(color)
+            print(f"{rgb}", end=" ")
     print()
 
 exit_requested = False
 
 def onRel(key):
-    global exit_requested
-    if key == keyboard.Key.delete:
-        print("Exiting color capture...")
-        exit_requested = True
-        return False
+    global exit_requested, display_format_hex
+    try:
+        if key == keyboard.Key.delete:
+            print("Exiting color capture...")
+            exit_requested = True
+            return False
+        # FEATURE: Keyboard shortcuts for printing and toggling display
+        elif hasattr(key, 'char') and key.char:
+            if key.char.lower() == 'p':
+                printColorList()
+            elif key.char.lower() == 't':
+                display_format_hex = not display_format_hex
+                fmt = "HEX" if display_format_hex else "RGB"
+                print(f"Display format toggled to {fmt}")
+    except AttributeError:
+        pass
 
 def exportToFile(file_path):
     if exit_requested:
@@ -82,7 +99,10 @@ def exportToFile(file_path):
         raise FileExistsError(f"{file_path} is already present")
     with open(file_path, "w") as f:
         for color in colorList:
-            f.write(f"#{color}\n")
+            if display_format_hex:
+                f.write(f"#{color}\n")
+            else:
+                f.write(f"{hex_to_rgb(color)}\n")
 
 def getHex(rgb):
     output = ''
@@ -105,7 +125,6 @@ def onClick(x, y, button, press):
         hex_color = getHex(color)
         colorList.append(hex_color)
         save_history()
-        # FEATURE: Show hex, RGB, and nearest color name
         nearest_name = get_nearest_color_name(color)
         print(f"Color at mouse click (x={x}, y={y}): #{hex_color} | RGB: {color} | Name: {nearest_name}")
 
@@ -118,6 +137,8 @@ def main():
 def start_color_capture():
     print("Right-click on the screen to capture colors.")
     print("Press the Delete key to exit.")
+    print("Press P to print tracked colors.")
+    print("Press T to toggle display format between HEX and RGB.")
     main()
 
 def export_colors_to_file(file_path):
