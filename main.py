@@ -786,7 +786,7 @@ if __name__ == "__main__":
         printColorList()
     else:
         print("Invalid choice. Please choose 1, 2, or 3.")'''
-import csv
+'''import csv
 import json
 from pynput import keyboard
 from pynput import mouse
@@ -1005,5 +1005,174 @@ def start_color_capture():
 
 # The user menu is now simplified to just start the capture process.
 if __name__ == "__main__":
-    start_color_capture()
+    start_color_capture()'''
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from pynput import keyboard, mouse
+from PIL import ImageGrab
+import threading
+
+# Global variables
+colorList = []
+listener_thread = None
+is_capturing = False
+
+# Function to update the GUI listbox with captured colors
+def update_listbox():
+    listbox.delete(0, tk.END)
+    for color in colorList:
+        listbox.insert(tk.END, f"#{color}")
+
+# The GUI application class
+class ColorCaptureApp:
+    def __init__(self, master):
+        self.master = master
+        master.title("Color Capture Tool")
+        master.geometry("400x500")
+
+        # Create widgets
+        self.label = tk.Label(master, text="Click Start to begin capturing colors.", pady=10)
+        self.label.pack()
+
+        self.start_button = tk.Button(master, text="Start Capture", command=self.start_capture)
+        self.start_button.pack(pady=5)
+
+        self.stop_button = tk.Button(master, text="Stop Capture", command=self.stop_capture, state=tk.DISABLED)
+        self.stop_button.pack(pady=5)
+
+        self.export_button = tk.Button(master, text="Export Colors", command=self.export_colors, state=tk.DISABLED)
+        self.export_button.pack(pady=5)
+        
+        self.clear_button = tk.Button(master, text="Clear Colors", command=self.clear_colors)
+        self.clear_button.pack(pady=5)
+
+        self.listbox_label = tk.Label(master, text="Captured Colors (Hex):")
+        self.listbox_label.pack(pady=5)
+
+        self.listbox = tk.Listbox(master)
+        self.listbox.pack(pady=5, padx=10, fill=tk.BOTH, expand=True)
+
+    def start_capture(self):
+        global is_capturing, listener_thread
+        if not is_capturing:
+            self.label.config(text="Right-click on the screen to capture colors.")
+            self.start_button.config(state=tk.DISABLED)
+            self.stop_button.config(state=tk.NORMAL)
+            self.export_button.config(state=tk.NORMAL)
+            is_capturing = True
+
+            # Start listeners in a separate thread
+            listener_thread = threading.Thread(target=self.run_listeners, daemon=True)
+            listener_thread.start()
+
+    def stop_capture(self):
+        global is_capturing
+        if is_capturing:
+            self.label.config(text="Color capture stopped.")
+            self.start_button.config(state=tk.NORMAL)
+            self.stop_button.config(state=tk.DISABLED)
+            is_capturing = False
+            
+            # Stop the pynput listeners
+            if keyboard_listener:
+                keyboard_listener.stop()
+            if mouse_listener:
+                mouse_listener.stop()
+
+    def clear_colors(self):
+        global colorList
+        colorList = []
+        update_listbox()
+        messagebox.showinfo("Cleared", "Captured colors have been cleared.")
+
+    def export_colors(self):
+        if not colorList:
+            messagebox.showinfo("No Colors", "There are no colors to export.")
+            return
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text file", "*.txt"), ("CSV file", "*.csv"), ("JSON file", "*.json"), ("HTML file", "*.html")],
+            title="Export Colors"
+        )
+        if not file_path:
+            return
+
+        try:
+            self.exportToFile(file_path)
+            messagebox.showinfo("Success", f"Colors successfully exported to {file_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def run_listeners(self):
+        global keyboard_listener, mouse_listener
+        with keyboard.Listener(on_release=self.on_keyboard_release) as keyboard_listener:
+            with mouse.Listener(on_click=self.on_mouse_click) as mouse_listener:
+                keyboard_listener.join()
+                mouse_listener.join()
+
+    def on_keyboard_release(self, key):
+        if key == keyboard.Key.delete:
+            self.stop_capture()
+            return False
+
+    def on_mouse_click(self, x, y, button, pressed):
+        if button == mouse.Button.right and pressed and is_capturing:
+            color = self.getColor(x, y)
+            hex_color = self.getHex(color)
+            colorList.append(hex_color)
+            self.master.after(0, update_listbox) # Use .after to update GUI from a different thread
+            print(f"Color captured: #{hex_color}")
+
+    def getColor(self, x, y):
+        return ImageGrab.grab().getpixel((x, y))
+
+    def getHex(self, rgb):
+        return ''.join([hex(val)[2:].upper().zfill(2) for val in rgb])
+
+    def hex_to_rgb(self, hexcode):
+        hexcode = hexcode.lstrip('#')
+        return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
+    
+    def exportToFile(self, file_path):
+        _, ext = splitext(file_path.lower())
+
+        if ext == '.txt':
+            with open(file_path, "w") as f:
+                for color in colorList:
+                    f.write(f"#{color}\n")
+        
+        elif ext == '.csv':
+            import csv
+            with open(file_path, 'w', newline='') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow(['Hex Code', 'Red', 'Green', 'Blue'])
+                for color in colorList:
+                    rgb_color = self.hex_to_rgb(color)
+                    csv_writer.writerow([f"#{color}", rgb_color[0], rgb_color[1], rgb_color[2]])
+        
+        elif ext == '.json':
+            import json
+            with open(file_path, 'w') as json_file:
+                hex_colors = [f"#{color}" for color in colorList]
+                json.dump(hex_colors, json_file, indent=4)
+                
+        elif ext == '.html':
+            html_content = """<!DOCTYPE html><html><head><title>Color Palette</title><style>body {font-family: sans-serif;}.color-container {display: flex;flex-wrap: wrap;gap: 10px;padding: 20px;}.color-box {width: 100px;height: 100px;border: 1px solid #ccc;display: flex;flex-direction: column;justify-content: flex-end;align-items: center;text-align: center;}.color-text {background-color: rgba(255, 255, 255, 0.7);width: 100%;padding: 5px 0;font-size: 0.8em;}</style></head><body><h1>Color Palette</h1><div class="color-container">"""
+            for color in colorList:
+                hex_code = f"#{color}"
+                rgb_code = self.hex_to_rgb(color)
+                html_content += f"""<div class="color-box" style="background-color: {hex_code};"><span class="color-text">{hex_code}<br>({rgb_code[0]}, {rgb_code[1]}, {rgb_code[2]})</span></div>"""
+            html_content += """</div></body></html>"""
+            with open(file_path, "w") as f:
+                f.write(html_content)
+        
+        else:
+            raise ValueError("Unsupported file extension. Please use .txt, .csv, .json, or .html.")
+
+# Main application execution
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ColorCaptureApp(root)
+    root.mainloop()
 
