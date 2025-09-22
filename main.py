@@ -23,27 +23,14 @@ def printColorList():
     print()
 
 def getColorListStr():
-    return ' '.join(f"#{color}" for color in colorList)
+    return [f"#{color}" for color in colorList]
 
-# Flag to indicate whether exit has been requested
+
 exit_requested = False
-
-# Since we cannot keep the script running all the time,
-#  and it will only tell us the value of the color if we press the close button,
-#  we'll need to code an exit in some way. So we use a key on the keyboard to terminate the program.
-def onRel(key):
-    global exit_requested
-    if key == keyboard.Key.delete:
-        exit_requested = True
-        print("Exiting color capture...")
-        return False
-
 # Function to export the colors detected to file_path
 # Assume that global colorList stores hexcodes of colors
 # If file_path is already present it raises Error
 def exportToFile(file_path):
-    if exit_requested:
-        return False  
     if isfile(file_path):
         raise FileExistsError(f"{file_path} is already present")
     with open(file_path, "w") as f:
@@ -103,6 +90,15 @@ def start_color_capture():
     print("Right-click on the screen to capture colors.")
     print("Press the Delete key to exit.")
     main()
+def onRel(key):
+    global exit_requested
+    if key == keyboard.Key.delete:
+        exit_requested = True
+        print("Exiting color capture...")
+        return False
+def clear_colors():
+    colorList.clear()
+    update_color_list_gui()
 
 #This function exports detected colors to a file and provides user feedback on the export process, including success confirmation and error 
 # handling for existing files.
@@ -136,43 +132,106 @@ def gui_export_colors():
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
-def update_color_list_gui():
-    if 'color_list_var' in globals():
-        color_list_var.set(getColorListStr())
+    if 'color_listbox' in globals():
+        color_listbox.delete(0, tk.END)
+        for color in getColorListStr():
+            color_listbox.insert(tk.END, color)
 
-def clear_colors():
-    colorList.clear()
-    update_color_list_gui()
-
-def show_instructions():
-    messagebox.showinfo("Instructions", "Click 'Start Capturing Colors' and right-click anywhere on the screen to capture a color.\nPress the Delete key to stop capturing.")
+    if 'color_listbox' in globals():
+        color_listbox.delete(0, tk.END)
+        for color in getColorListStr():
+            color_listbox.insert(tk.END, color)
 
 def launch_gui():
-    global color_list_var, update_color_list_gui
+    global color_listbox, file_path_entry, update_color_list_gui
     root = tk.Tk()
     root.title("Color Capture Tool")
-    root.geometry("420x220")
+    root.geometry("500x350")
 
     tk.Label(root, text="Color Capture Tool", font=("Arial", 16, "bold")).pack(pady=8)
 
-    btn_frame = tk.Frame(root)
-    btn_frame.pack(pady=4)
+    # File path entry
+    entry_frame = tk.Frame(root)
+    entry_frame.pack(pady=2)
+    tk.Label(entry_frame, text="Export file path:").pack(side=tk.LEFT, padx=2)
+    file_path_entry = tk.Entry(entry_frame, width=35)
+    file_path_entry.pack(side=tk.LEFT, padx=2)
+    browse_btn = tk.Button(entry_frame, text="Browse", command=lambda: file_path_entry.insert(0, filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])))
+    browse_btn.pack(side=tk.LEFT, padx=2)
 
+    # Listbox for colors
+    tk.Label(root, text="Colors detected:").pack()
+    color_listbox = tk.Listbox(root, width=40, height=7, bg="#f0f0f0", font=("Consolas", 11))
+    color_listbox.pack(padx=10, pady=4)
+
+    # Buttons
+    btn_frame = tk.Frame(root)
+    btn_frame.pack(pady=8)
     tk.Button(btn_frame, text="Start Capturing Colors", command=run_color_capture_thread, width=22).grid(row=0, column=0, padx=5)
-    tk.Button(btn_frame, text="Export Colors to File", command=gui_export_colors, width=22).grid(row=0, column=1, padx=5)
+    tk.Button(btn_frame, text="Export Colors", command=lambda: gui_export_colors_with_entry(), width=22).grid(row=0, column=1, padx=5)
     tk.Button(btn_frame, text="Clear Colors", command=clear_colors, width=22).grid(row=1, column=0, padx=5, pady=4)
     tk.Button(btn_frame, text="Instructions", command=show_instructions, width=22).grid(row=1, column=1, padx=5, pady=4)
-
-    color_list_var = tk.StringVar()
-    color_list_var.set("")
-    tk.Label(root, text="Colors detected:").pack()
-    color_list_label = tk.Label(root, textvariable=color_list_var, wraplength=400, justify="left", bg="#f0f0f0", anchor="w")
-    color_list_label.pack(fill="x", padx=10, pady=4)
+    tk.Button(root, text="Exit", command=root.destroy, width=15).pack(pady=4)
 
     # Make update_color_list_gui accessible to mouse callback
     globals()['update_color_list_gui'] = update_color_list_gui
 
     root.mainloop()
+
+def show_instructions():
+    messagebox.showinfo("Instructions", "Click 'Start Capturing Colors' and right-click anywhere on the screen to capture a color.\nPress the Delete key to stop capturing.")
+
+    global color_listbox, file_path_entry, update_color_list_gui
+    root = tk.Tk()
+    root.title("Color Capture Tool")
+    root.geometry("500x350")
+
+    tk.Label(root, text="Color Capture Tool", font=("Arial", 16, "bold")).pack(pady=8)
+
+    # File path entry
+    entry_frame = tk.Frame(root)
+    entry_frame.pack(pady=2)
+    tk.Label(entry_frame, text="Export file path:").pack(side=tk.LEFT, padx=2)
+    file_path_entry = tk.Entry(entry_frame, width=35)
+    file_path_entry.pack(side=tk.LEFT, padx=2)
+    browse_btn = tk.Button(entry_frame, text="Browse", command=lambda: file_path_entry.insert(0, filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])))
+    browse_btn.pack(side=tk.LEFT, padx=2)
+
+    # Listbox for colors
+    tk.Label(root, text="Colors detected:").pack()
+    color_listbox = tk.Listbox(root, width=40, height=7, bg="#f0f0f0", font=("Consolas", 11))
+    color_listbox.pack(padx=10, pady=4)
+
+    # Buttons
+    btn_frame = tk.Frame(root)
+    btn_frame.pack(pady=8)
+    tk.Button(btn_frame, text="Start Capturing Colors", command=run_color_capture_thread, width=22).grid(row=0, column=0, padx=5)
+    tk.Button(btn_frame, text="Export Colors", command=lambda: gui_export_colors_with_entry(), width=22).grid(row=0, column=1, padx=5)
+    tk.Button(btn_frame, text="Clear Colors", command=clear_colors, width=22).grid(row=1, column=0, padx=5, pady=4)
+    tk.Button(btn_frame, text="Instructions", command=show_instructions, width=22).grid(row=1, column=1, padx=5, pady=4)
+    tk.Button(root, text="Exit", command=root.destroy, width=15).pack(pady=4)
+
+    # Make update_color_list_gui accessible to mouse callback
+    globals()['update_color_list_gui'] = update_color_list_gui
+
+    root.mainloop()
+
+# New export function using entry
+def gui_export_colors_with_entry():
+    if not colorList:
+        messagebox.showinfo("No Colors", "No colors to export.")
+        return
+    file_path = file_path_entry.get().strip()
+    if not file_path:
+        messagebox.showwarning("Missing Path", "Please enter a file path for export.")
+        return
+    try:
+        exportToFile(file_path)
+        messagebox.showinfo("Export Successful", f"Colors exported to {file_path}")
+    except FileExistsError:
+        messagebox.showerror("File Exists", f"{file_path} already exists.")
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
 
 #This code provides a user menu with options to capture colors or export colors to a file based on user input.
 if __name__ == "__main__":
