@@ -1,4 +1,4 @@
-from pynput import keyboard
+'''from pynput import keyboard
 from pynput import mouse
 from PIL import Image, ImageGrab
 from os.path import isfile
@@ -108,6 +108,163 @@ def export_colors_to_file(file_path):
         print(f"Error: {e}")
 
 #This code provides a user menu with options to capture colors or export colors to a file based on user input.
+if __name__ == "__main__":
+    print("Color Capture Tool")
+    print("1. Start capturing colors")
+    print("2. Export colors to a file")
+    choice = input("Enter your choice (1/2): ")
+
+    if choice == '1':
+        start_color_capture()
+    elif choice == '2':
+        file_path = input("Enter the file path to export colors: ")
+        export_colors_to_file(file_path)
+    else:
+        print("Invalid choice. Please choose 1 or 2.")'''
+from pynput import keyboard
+from pynput import mouse
+from PIL import Image, ImageGrab
+from os.path import isfile
+import webcolors   # NEW: for human-readable color names
+
+# Global list of captured colors
+colorList = []
+
+# Exit flag
+exit_requested = False
+
+
+# Try to get a human-readable color name
+def get_color_name(hexcode):
+    try:
+        # Exact match
+        return webcolors.hex_to_name(f"#{hexcode}", spec='css3')
+    except ValueError:
+        # No exact match → find the closest color
+        rgb = hex_to_rgb(hexcode)
+        min_colors = {}
+        for name, hex_value in webcolors.CSS3_HEX_TO_NAMES.items():
+            r_c, g_c, b_c = webcolors.hex_to_rgb(name)
+            rd = (r_c - rgb[0]) ** 2
+            gd = (g_c - rgb[1]) ** 2
+            bd = (b_c - rgb[2]) ** 2
+            min_colors[(rd + gd + bd)] = hex_value
+        closest_hex = min_colors[min(min_colors.keys())]
+        return webcolors.CSS3_HEX_TO_NAMES[closest_hex]
+
+
+# Print captured colors
+def printColorList():
+    if not colorList:
+        print("No colors captured yet.")
+    else:
+        print("Colors detected:")
+        for color in colorList:
+            rgb = hex_to_rgb(color)
+            name = get_color_name(color)
+            print(f"  #{color}  RGB{rgb}  → {name}")
+
+
+# Export colors to file
+def exportToFile(file_path):
+    if exit_requested:
+        return False
+    if isfile(file_path):
+        raise FileExistsError(f"{file_path} is already present")
+    if not colorList:
+        print("No colors captured. Nothing to export.")
+        return
+    with open(file_path, "w") as f:
+        for color in colorList:
+            rgb = hex_to_rgb(color)
+            name = get_color_name(color)
+            f.write(f"#{color}  RGB{rgb}  {name}\n")
+
+
+# Convert RGB → Hex
+def getHex(rgb):
+    return "".join(hex(value)[2:].upper().zfill(2) for value in rgb)
+
+
+# Convert Hex → RGB
+def hex_to_rgb(hexcode):
+    hexcode = hexcode.lstrip('#')
+    return tuple(int(hexcode[i:i+2], 16) for i in (0, 2, 4))
+
+
+# Capture color at (x,y)
+def getColor(x, y):
+    return ImageGrab.grab().getpixel((x, y))
+
+
+# Mouse listener
+def onClick(x, y, button, press):
+    if exit_requested:
+        return False
+    if button == mouse.Button.right and press:
+        color = getColor(x, y)
+        hex_color = getHex(color)
+        if hex_color not in colorList:  # avoid duplicates
+            colorList.append(hex_color)
+        rgb = hex_to_rgb(hex_color)
+        name = get_color_name(hex_color)
+        print(f"Color at (x={x}, y={y}): #{hex_color}  RGB{rgb}  → {name}")
+
+
+# Keyboard listener
+def onRel(key):
+    global exit_requested
+    try:
+        if key == keyboard.Key.delete:
+            print("Exiting color capture...")
+            exit_requested = True
+            return False
+
+        elif key.char == 'p':
+            printColorList()
+
+        elif key.char == 'c':
+            colorList.clear()
+            print("Color list cleared.")
+
+        elif key.char == 'r':
+            if colorList:
+                last_color = colorList[-1]
+                rgb = hex_to_rgb(last_color)
+                name = get_color_name(last_color)
+                print(f"Last color: #{last_color}  RGB{rgb}  → {name}")
+            else:
+                print("No colors captured yet.")
+    except AttributeError:
+        pass
+
+
+# Main loop
+def main():
+    with keyboard.Listener(on_release=onRel) as k:
+        with mouse.Listener(on_click=onClick) as m:
+            k.join()
+            m.join()
+
+
+# Start capture
+def start_color_capture():
+    print("Right-click to capture colors.")
+    print("Shortcuts: [P] Print | [C] Clear | [R] Show last | [Delete] Exit")
+    main()
+
+
+# Export colors
+def export_colors_to_file(file_path):
+    print("Exporting detected colors to file...")
+    try:
+        exportToFile(file_path)
+        print(f"Colors exported to {file_path}")
+    except FileExistsError as e:
+        print(f"Error: {e}")
+
+
+# Menu
 if __name__ == "__main__":
     print("Color Capture Tool")
     print("1. Start capturing colors")
